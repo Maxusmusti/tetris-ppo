@@ -46,6 +46,7 @@ piece_map = {
     "Tl": 16,
     "Tr": 17,
     "Tu": 18,
+    None: 19
 }
 
 def extra_feats(info):

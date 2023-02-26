@@ -2,8 +2,7 @@ from nes_py.wrappers import JoypadSpace
 import gym_tetris
 from gym_tetris.actions import MOVEMENT, SIMPLE_MOVEMENT
 from feature_prep import crop_clean_state, extra_feats
-from ppo import Controller
-from ppo import PPOAgent
+from ppo import Controller, PPOAgent, compute_reward
 import tensorflow as tf
 import numpy as np
 import time
@@ -32,8 +31,8 @@ def train(agent, epochs, batch_steps, episode_steps):
         st = time.perf_counter()
         ll = []
 
-        #if epoch % 50 == 1:
-            #save_model(agent, str(epoch))
+        if epoch % 50 == 1:
+            save_model(agent, str(epoch))
 
         while len(controller.X1) < batch_steps:
             print(len(controller.X1))
@@ -67,19 +66,22 @@ def train(agent, epochs, batch_steps, episode_steps):
                 # Take the action and save the reward
                 obs, agent_rew, done, info = env.step(agent_act)
                 #env.render()
+                raw_obs = obs
+                cleaned_obs = crop_clean_state(raw_obs)
+                agent_rew = compute_reward(cleaned_obs, agent_rew)
                 # Take bonus steps to simplify:
                 if not done:
                     for i in range(10):
                         obs, fake_rew, done, info = env.step(0)
                         #env.render()
+                        raw_obs = obs
+                        cleaned_obs = crop_clean_state(raw_obs)
+                        fake_rew = compute_reward(cleaned_obs, fake_rew)
                         if fake_rew > agent_rew:
                             agent_rew = fake_rew
                         if done:
                             break
-                    
 
-                raw_obs = obs
-                cleaned_obs = crop_clean_state(raw_obs)
                 info_vec = extra_feats(info)
 
                 rews.append(agent_rew)

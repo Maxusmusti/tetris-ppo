@@ -243,6 +243,16 @@ class PPOAgent(object):
         act_mask[act] = 1.0
         self.controller.Y.append(act_mask)
 
-def create_obs_vector(raw_obs):
-    """Creates a two observation vectors: one from me_unit's perspective and one from enemy_unit's perspective"""
-    return [0]
+val = inp = Input((160,80,1))
+val = MaxPooling2D(pool_size=(8,8), strides=(8,8))(val)
+state_model = Model(inputs=inp, outputs=val)
+state_model.compile(loss='mse')
+sf = K.function(inputs=inp,outputs=val)
+
+def compute_reward(obs, rew):
+    try:
+        state = np.squeeze(np.squeeze(sf(np.expand_dims(obs, axis=0)), axis=0), axis=2)
+    except:
+        print("bad state")
+        return rew
+    return rew
