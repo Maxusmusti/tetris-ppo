@@ -21,14 +21,41 @@ def crop_clean_state(state):
     cropped = cropped / 255.0
     gray_cropped = rgb2gray(cropped)
     bw_vec = np.vectorize(bw_pixel)
-    bw_cropped = np.array(list(map(bw_vec, gray_cropped)))
-    plt.imshow(bw_cropped, interpolation='nearest', cmap="gray")
-    plt.show()
+    bw_cropped = np.expand_dims(np.array(list(map(bw_vec, gray_cropped))), axis=2)
+    #plt.imshow(bw_cropped, interpolation='nearest', cmap="gray")
+    #plt.show()
     return bw_cropped
+
+piece_map = {
+    "Sh": 0,
+    "Sv": 1,
+    "Zh": 2,
+    "Zv": 3,
+    "Ih": 4,
+    "Iv": 5,
+    "O": 6,
+    "Ld": 7,
+    "Ll": 8,
+    "Lr": 9,
+    "Lu": 10,
+    "Jd": 11,
+    "Jl": 12,
+    "Jr": 13,
+    "Ju": 14,
+    "Td": 15,
+    "Tl": 16,
+    "Tr": 17,
+    "Tu": 18,
+}
 
 def extra_feats(info):
     """
     Extract the additional feature vector from the info dict
     """
-    # TODO - Choose features
-    return np.array([])
+    feats = []
+    feats.append(piece_map[info['current_piece']])
+    feats.append(piece_map[info['next_piece']])
+    feats.append(info['score'])
+    feats.append(info['number_of_lines'])
+    feats.append(info['board_height'])
+    return np.expand_dims(np.array(feats), axis=0)
