@@ -56,7 +56,7 @@ def train(agent, epochs, batch_steps, episode_steps):
                 agent.controller.P.append(agent_pred)
 
                 # Add a decaying randomness to the chosen action
-                probability = 1 - (12*epoch)/epochs
+                probability = 1 - (10*epoch)/epochs
                 probability = 0 if probability < 0 else probability
                 if np.random.random_sample() < probability:
                     agent_act = np.random.choice(act_space_size)
@@ -115,7 +115,7 @@ def save_model(agent, name):
 
 def main():
     gamma = 0.99
-    epochs = 10000
+    epochs = 1000
     batch_steps = 1000
     episode_steps = 2000
 
