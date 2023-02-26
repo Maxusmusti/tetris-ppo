@@ -32,10 +32,11 @@ def train(agent, epochs, batch_steps, episode_steps):
         st = time.perf_counter()
         ll = []
 
-        if epoch % 50 == 1:
-            save_model(agent, str(epoch))
+        #if epoch % 50 == 1:
+            #save_model(agent, str(epoch))
 
         while len(controller.X1) < batch_steps:
+            print(len(controller.X1))
             # reset the environment
             if done:
                 obs = env.reset()
@@ -66,6 +67,16 @@ def train(agent, epochs, batch_steps, episode_steps):
                 # Take the action and save the reward
                 obs, agent_rew, done, info = env.step(agent_act)
                 #env.render()
+                # Take bonus steps to simplify:
+                if not done:
+                    for i in range(10):
+                        obs, fake_rew, done, info = env.step(0)
+                        #env.render()
+                        if fake_rew > agent_rew:
+                            agent_rew = fake_rew
+                        if done:
+                            break
+                    
 
                 raw_obs = obs
                 cleaned_obs = crop_clean_state(raw_obs)
@@ -83,6 +94,8 @@ def train(agent, epochs, batch_steps, episode_steps):
                     break
         
         loss, vloss = agent.controller.fit()
+        #loss, vloss = (None, None)
+        #controller.X1 = []
 
         if loss != None and vloss != None:
             lll.append((epoch, np.mean(ll), loss, vloss, len(agent.controller.X1), len(ll), time.perf_counter() - st))
@@ -103,15 +116,15 @@ def save_model(agent, name):
 def main():
     gamma = 0.99
     epochs = 10000
-    batch_steps = 1
-    episode_steps = 1600
+    batch_steps = 1000
+    episode_steps = 2000
 
 	# Create env
-    env = gym_tetris.make('TetrisA-v2')
+    env = gym_tetris.make('TetrisA-v0')
     env = JoypadSpace(env, SIMPLE_MOVEMENT)
 
     # Declare observation shape, action space and model controller
-    observation_shape = (163, 81, 1)
+    observation_shape = (160, 80, 1)
     action_space = env.action_space
     controller = Controller(gamma, observation_shape, action_space, 'CONTROLLER')
 

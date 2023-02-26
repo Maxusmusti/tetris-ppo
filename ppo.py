@@ -5,10 +5,11 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.layers import Input, Dense, Conv2D, MaxPooling2D, Flatten, Lambda, Concatenate
+from tensorflow.keras.layers import Input, Dense, Conv2D, MaxPooling2D, Flatten, Lambda, Concatenate, AveragePooling2D
 
 tf.compat.v1.disable_eager_execution()
 
+#import torch
 #import torch.nn as nn
 
 """
@@ -79,6 +80,7 @@ class Controller(object):
 
         self.init_policy_function()
         self.init_value_function()
+        self.pretrained = self.load_pretrained()
 
         self.X1 = []
         self.X2 = []
@@ -92,18 +94,23 @@ class Controller(object):
 
         self.name = name
 
+    def load_pretrained(self):
+        return None
+
     def init_value_function(self):
         # value function
         x = in1 = Input(self.observation_shape)
         in2 = Input((5,))
-        x = Conv2D(filters=32, kernel_size=(3, 3), activation='relu')(x)
-        x = MaxPooling2D(pool_size=(2, 2))(x)
-        x = Conv2D(filters=64, kernel_size=(3, 3), activation='relu')(x)
-        x = MaxPooling2D(pool_size=(2, 2))(x)
-        x = Conv2D(filters=64, kernel_size=(3, 3), activation='relu')(x)
-        x = MaxPooling2D(pool_size=(2, 2))(x)
+        #x = Conv2D(filters=16, kernel_size=(4, 4), strides=(4,4), activation='relu')(x)
+        #x = MaxPooling2D(pool_size=(2, 2))(x)
+        x = st = MaxPooling2D(pool_size=(8,8), strides=(8,8))(x)
+        x = Conv2D(filters=1, kernel_size=(3, 3), activation='relu')(x)
+        #x = MaxPooling2D(pool_size=(2, 2))(x)
+        #x = Conv2D(filters=64, kernel_size=(3, 3), activation='relu')(x)
+        #x = MaxPooling2D(pool_size=(2, 2))(x)
+        st = Flatten()(st)
         x = Flatten()(x)
-        x = Concatenate()([x, in2])
+        x = Concatenate()([x, st, in2])
         x = Dense(units=32, activation='relu')(x)
         x = Dense(units=32, activation='relu')(x)
         x = Dense(units=1, activation='sigmoid')(x)
@@ -117,21 +124,24 @@ class Controller(object):
 
         self.vf = vf
         self.v = v
-    
+
     def init_policy_function(self):
         action_space = self.action_space
 
         # policy function
         x = in1 = Input(self.observation_shape)
         in2 = Input((5,))
-        x = Conv2D(filters=32, kernel_size=(3, 3), activation='relu')(x)
-        x = MaxPooling2D(pool_size=(2, 2))(x)
-        x = Conv2D(filters=64, kernel_size=(3, 3), activation='relu')(x)
-        x = MaxPooling2D(pool_size=(2, 2))(x)
-        x = Conv2D(filters=64, kernel_size=(3, 3), activation='relu')(x)
-        x = MaxPooling2D(pool_size=(2, 2))(x)
+        #x = Conv2D(filters=16, kernel_size=(4, 4), strides=(4,4), activation='relu')(x)
+        #x = MaxPooling2D(pool_size=(2, 2))(x)
+        x = st = MaxPooling2D(pool_size=(8,8), strides=(8,8))(x)
+        x = Conv2D(filters=1, kernel_size=(3, 3), activation='relu')(x)
+        #x = Conv2D(filters=64, kernel_size=(3, 3), activation='relu')(x)
+        #x = MaxPooling2D(pool_size=(2, 2))(x)
+        #x = Conv2D(filters=64, kernel_size=(3, 3), activation='relu')(x)
+        #x = MaxPooling2D(pool_size=(2, 2))(x)
+        st = Flatten()(st)
         x = Flatten()(x)
-        x = Concatenate()([x, in2])
+        x = Concatenate()([x, st, in2])
         x = Dense(units=32, activation='relu')(x)
         x = Dense(units=32, activation='relu')(x)
         x = Dense(action_space.n)(x)

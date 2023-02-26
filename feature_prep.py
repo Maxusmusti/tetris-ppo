@@ -17,7 +17,7 @@ def crop_clean_state(state):
     """
     Crops only the tetris board from the state image and makes it grayscale [0-1]
     """
-    cropped = state[46:209, 95:176]
+    cropped = state[47:207, 95:175]
     cropped = cropped / 255.0
     gray_cropped = rgb2gray(cropped)
     bw_vec = np.vectorize(bw_pixel)
