@@ -8,11 +8,12 @@ import numpy as np
 import time
 import os
 
-#os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # Remove to regain GPU ability
+# os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # Remove to regain GPU ability
 tf.compat.v1.disable_eager_execution()
 
 # Number of possible actions that PPO Agent can take
 act_space_size = 6
+
 
 def train(agent, epochs, batch_steps, episode_steps):
     """
@@ -23,7 +24,7 @@ def train(agent, epochs, batch_steps, episode_steps):
 
     # use agent1's controller as the main environment controller
     controller = agent.controller
-    env = agent.env 
+    env = agent.env
     done = True
 
     for epoch in range(epochs):
@@ -44,7 +45,7 @@ def train(agent, epochs, batch_steps, episode_steps):
             # Get raw observation and create new observation vector
             raw_obs = obs
             cleaned_obs = crop_clean_state(raw_obs)
-            info_vec = np.zeros(shape=(1,5))
+            info_vec = np.zeros(shape=(1, 5))
             prev_holes = 0
             prev_bumps = 0
 
@@ -54,25 +55,27 @@ def train(agent, epochs, batch_steps, episode_steps):
                 steps += 1
 
                 # Prediction, action, save prediction
-                agent_pred, agent_act = [x[0] for x in agent.controller.pf([cleaned_obs[None], info_vec])]
+                agent_pred, agent_act = [
+                    x[0] for x in agent.controller.pf([cleaned_obs[None], info_vec])
+                ]
                 agent.controller.P.append(agent_pred)
 
                 # Add a decaying randomness and user input to the chosen action
-                probability = 1 - (10*epoch)/epochs
+                probability = 1 - (10 * epoch) / epochs
                 probability = 0 if probability < 0 else probability
                 if np.random.random_sample() < probability:
                     if epoch == -1:
                         event = input(f"Action {steps}: ")
-                        #print("here")
-                        if event == 's':
+                        # print("here")
+                        if event == "s":
                             agent_act = 5
-                        elif event == 'a':
+                        elif event == "a":
                             agent_act = 4
-                        elif event == 'd':
+                        elif event == "d":
                             agent_act = 3
-                        elif event == 'q':
+                        elif event == "q":
                             agent_act = 2
-                        elif event == 'e':
+                        elif event == "e":
                             agent_act = 1
                         else:
                             agent_act = 0
@@ -87,20 +90,24 @@ def train(agent, epochs, batch_steps, episode_steps):
                 env.render()
                 raw_obs = obs
                 cleaned_obs = crop_clean_state(raw_obs)
-                agent_rew, prev_holes, prev_bumps = compute_reward(cleaned_obs, agent_rew, prev_holes, prev_bumps)
+                agent_rew, prev_holes, prev_bumps = compute_reward(
+                    cleaned_obs, agent_rew, prev_holes, prev_bumps
+                )
                 # Take bonus steps to simplify:
                 if not done:
                     obs, fake_rew, done, info = env.step(5)
                     env.render()
                     raw_obs = obs
                     cleaned_obs = crop_clean_state(raw_obs)
-                    fake_rew, prev_holes, prev_bumps = compute_reward(cleaned_obs, fake_rew, prev_holes, prev_bumps)
+                    fake_rew, prev_holes, prev_bumps = compute_reward(
+                        cleaned_obs, fake_rew, prev_holes, prev_bumps
+                    )
                     agent_rew += fake_rew
                     agent_rew /= 2
 
-                #print(agent_rew)
-                #raw_obs = obs
-                #cleaned_obs = crop_clean_state(raw_obs)
+                # print(agent_rew)
+                # raw_obs = obs
+                # cleaned_obs = crop_clean_state(raw_obs)
                 info_vec = extra_feats(info)
 
                 rews.append(agent_rew)
@@ -108,29 +115,43 @@ def train(agent, epochs, batch_steps, episode_steps):
                 if steps == episode_steps or done:
                     ll.append(np.sum(rews))
 
-                    for i in range(len(rews)-2, -1, -1):
-                        rews[i] += rews[i+1] * agent.controller.gamma
+                    for i in range(len(rews) - 2, -1, -1):
+                        rews[i] += rews[i + 1] * agent.controller.gamma
                     agent.controller.V.extend(rews)
 
                     break
-        
+
         loss, vloss = agent.controller.fit()
-        #loss, vloss = (None, None)
-        #controller.X1 = []
+        # loss, vloss = (None, None)
+        # controller.X1 = []
 
         if loss != None and vloss != None:
-            lll.append((epoch, np.mean(ll), loss, vloss, len(agent.controller.X1), len(ll), time.perf_counter() - st))
-            print("%3d  ep_rew:%9.2f  loss:%7.2f   vloss:%9.2f  counts: %5d/%3d tm: %.2f s" % lll[-1])
+            lll.append(
+                (
+                    epoch,
+                    np.mean(ll),
+                    loss,
+                    vloss,
+                    len(agent.controller.X1),
+                    len(ll),
+                    time.perf_counter() - st,
+                )
+            )
+            print(
+                "%3d  ep_rew:%9.2f  loss:%7.2f   vloss:%9.2f  counts: %5d/%3d tm: %.2f s"
+                % lll[-1]
+            )
             print("Episode No: %3d  Episode Reward: %9.2f" % (lll[-1][0], lll[-1][1]))
             sign = "+" if lll[-1][1] >= 0 else ""
             final_out += sign + str(lll[-1][1])
+
 
 def test(agent, episode_steps):
     """
     Tests PPO agents with specified number of episode_steps
     """
 
-    env = agent.env 
+    env = agent.env
 
     # reset the environment
     obs = env.reset()
@@ -139,7 +160,7 @@ def test(agent, episode_steps):
     # Get raw observation and create new observation vector
     raw_obs = obs
     cleaned_obs = crop_clean_state(raw_obs)
-    info_vec = np.zeros(shape=(1,5))
+    info_vec = np.zeros(shape=(1, 5))
     prev_holes = 0
     prev_bumps = 0
 
@@ -152,21 +173,27 @@ def test(agent, episode_steps):
         print(info_vec.shape)
         test = agent.controller.vf([cleaned_obs[None], info_vec])
         print(test)
-        agent_pred, agent_act = [x[0] for x in agent.controller.pf([cleaned_obs[None], info_vec])]
+        agent_pred, agent_act = [
+            x[0] for x in agent.controller.pf([cleaned_obs[None], info_vec])
+        ]
 
         # Take the action
         obs, agent_rew, done, info = env.step(agent_act)
         env.render()
         raw_obs = obs
         cleaned_obs = crop_clean_state(raw_obs)
-        agent_rew, prev_holes, prev_bumps = compute_reward(cleaned_obs, agent_rew, prev_holes, prev_bumps)
+        agent_rew, prev_holes, prev_bumps = compute_reward(
+            cleaned_obs, agent_rew, prev_holes, prev_bumps
+        )
         # Take bonus steps to simplify:
         if not done:
             obs, fake_rew, done, info = env.step(5)
             env.render()
             raw_obs = obs
             cleaned_obs = crop_clean_state(raw_obs)
-            fake_rew, prev_holes, prev_bumps = compute_reward(cleaned_obs, fake_rew, prev_holes, prev_bumps)
+            fake_rew, prev_holes, prev_bumps = compute_reward(
+                cleaned_obs, fake_rew, prev_holes, prev_bumps
+            )
             agent_rew += fake_rew
             agent_rew /= 2
 
@@ -175,14 +202,16 @@ def test(agent, episode_steps):
         if steps == episode_steps or done:
             break
 
+
 def save_model(agent, name):
     print()
-    print('saving popt')
-    tf.keras.models.save_model(agent.controller.popt, f'./saved_models/popt_{name}')
-    print('saving p')
-    tf.keras.models.save_model(agent.controller.p, f'./saved_models/p_{name}')
-    print('saving v')
-    tf.keras.models.save_model(agent.controller.v, f'./saved_models/v_{name}')
+    print("saving popt")
+    tf.keras.models.save_model(agent.controller.popt, f"./saved_models/popt_{name}")
+    print("saving p")
+    tf.keras.models.save_model(agent.controller.p, f"./saved_models/p_{name}")
+    print("saving v")
+    tf.keras.models.save_model(agent.controller.v, f"./saved_models/v_{name}")
+
 
 def main():
     gamma = 0.99
@@ -192,30 +221,35 @@ def main():
 
     train_system = True
 
-	# Create env
-    env = gym_tetris.make('TetrisA-v2')
+    # Create env
+    env = gym_tetris.make("TetrisA-v2")
     env = JoypadSpace(env, SIMPLE_MOVEMENT)
 
     # Declare observation shape, action space and model controller
     observation_shape = (160, 80, 1)
     action_space = env.action_space
-    
+
     if train_system:
         # Train
-        controller = Controller(gamma, observation_shape, action_space, 'CONTROLLER')
+        controller = Controller(gamma, observation_shape, action_space, "CONTROLLER")
         # Declare, train and run agent
         agent = PPOAgent(env, controller=controller)
-        train(agent, epochs=epochs, batch_steps=batch_steps, episode_steps=episode_steps)
+        train(
+            agent, epochs=epochs, batch_steps=batch_steps, episode_steps=episode_steps
+        )
         save_model(agent, "trial")
     else:
         # Test
-        v = tf.keras.models.load_model('./saved_models/v_trial')
-        p = tf.keras.models.load_model('./saved_models/p_trial')
-        popt = tf.keras.models.load_model('./saved_models/popt_trial', compile=False)
-        controller = TestController(gamma, observation_shape, action_space, 'CONTROLLER', v, p, popt)
+        v = tf.keras.models.load_model("./saved_models/v_trial")
+        p = tf.keras.models.load_model("./saved_models/p_trial")
+        popt = tf.keras.models.load_model("./saved_models/popt_trial", compile=False)
+        controller = TestController(
+            gamma, observation_shape, action_space, "CONTROLLER", v, p, popt
+        )
         agent = PPOAgent(env, controller=controller)
         test(agent, episode_steps)
     env.close()
+
 
 if __name__ == "__main__":
     main()

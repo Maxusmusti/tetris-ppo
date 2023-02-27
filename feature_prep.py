@@ -1,17 +1,20 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
+
 def rgb2gray(rgb):
     """
     Changes rgb image to grayscale
     """
-    return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
+    return np.dot(rgb[..., :3], [0.2989, 0.5870, 0.1140])
+
 
 def bw_pixel(gray):
     """
     Changes a grayscale pixel to only black or white
     """
-    return (gray if gray == 0 else 1)
+    return gray if gray == 0 else 1
+
 
 def crop_clean_state(state):
     """
@@ -22,9 +25,10 @@ def crop_clean_state(state):
     gray_cropped = rgb2gray(cropped)
     bw_vec = np.vectorize(bw_pixel)
     bw_cropped = np.expand_dims(np.array(list(map(bw_vec, gray_cropped))), axis=2)
-    #plt.imshow(bw_cropped, interpolation='nearest', cmap="gray")
-    #plt.show()
+    # plt.imshow(bw_cropped, interpolation='nearest', cmap="gray")
+    # plt.show()
     return bw_cropped
+
 
 piece_map = {
     "Sh": 0,
@@ -46,17 +50,18 @@ piece_map = {
     "Tl": 16,
     "Tr": 17,
     "Tu": 18,
-    None: 19
+    None: 19,
 }
+
 
 def extra_feats(info):
     """
     Extract the additional feature vector from the info dict
     """
     feats = []
-    feats.append(piece_map[info['current_piece']])
-    feats.append(piece_map[info['next_piece']])
-    feats.append(info['score'])
-    feats.append(info['number_of_lines'])
-    feats.append(info['board_height'])
+    feats.append(piece_map[info["current_piece"]])
+    feats.append(piece_map[info["next_piece"]])
+    feats.append(info["score"])
+    feats.append(info["number_of_lines"])
+    feats.append(info["board_height"])
     return np.expand_dims(np.array(feats), axis=0)
