@@ -2,7 +2,7 @@ from nes_py.wrappers import JoypadSpace
 import gym_tetris
 from gym_tetris.actions import MOVEMENT, SIMPLE_MOVEMENT
 from feature_prep import crop_clean_state, extra_feats
-from ppo import Controller, PPOAgent, compute_reward
+from ppo import Controller, TestController, PPOAgent, compute_reward
 import tensorflow as tf
 import numpy as np
 import time
@@ -16,7 +16,7 @@ act_space_size = 6
 
 def train(agent, epochs, batch_steps, episode_steps):
     """
-    Trains two PPO agents with specified number of epochs, batch_steps, and episode_steps
+    Trains PPO agents with specified number of epochs, batch_steps, and episode_steps
     """
     final_out = ""
     lll = []
@@ -39,7 +39,7 @@ def train(agent, epochs, batch_steps, episode_steps):
             # reset the environment
             if done:
                 obs = env.reset()
-                #env.render()
+                env.render()
 
             # Get raw observation and create new observation vector
             raw_obs = obs
@@ -57,7 +57,7 @@ def train(agent, epochs, batch_steps, episode_steps):
                 agent_pred, agent_act = [x[0] for x in agent.controller.pf([cleaned_obs[None], info_vec])]
                 agent.controller.P.append(agent_pred)
 
-                # Add a decaying randomness to the chosen action
+                # Add a decaying randomness and user input to the chosen action
                 probability = 1 - (10*epoch)/epochs
                 probability = 0 if probability < 0 else probability
                 if np.random.random_sample() < probability:
@@ -84,14 +84,14 @@ def train(agent, epochs, batch_steps, episode_steps):
 
                 # Take the action and save the reward
                 obs, agent_rew, done, info = env.step(agent_act)
-                #env.render()
+                env.render()
                 raw_obs = obs
                 cleaned_obs = crop_clean_state(raw_obs)
                 agent_rew, prev_holes, prev_bumps = compute_reward(cleaned_obs, agent_rew, prev_holes, prev_bumps)
                 # Take bonus steps to simplify:
                 if not done:
                     obs, fake_rew, done, info = env.step(5)
-                    #env.render()
+                    env.render()
                     raw_obs = obs
                     cleaned_obs = crop_clean_state(raw_obs)
                     fake_rew, prev_holes, prev_bumps = compute_reward(cleaned_obs, fake_rew, prev_holes, prev_bumps)
@@ -125,6 +125,56 @@ def train(agent, epochs, batch_steps, episode_steps):
             sign = "+" if lll[-1][1] >= 0 else ""
             final_out += sign + str(lll[-1][1])
 
+def test(agent, episode_steps):
+    """
+    Tests PPO agents with specified number of episode_steps
+    """
+
+    env = agent.env 
+
+    # reset the environment
+    obs = env.reset()
+    env.render()
+
+    # Get raw observation and create new observation vector
+    raw_obs = obs
+    cleaned_obs = crop_clean_state(raw_obs)
+    info_vec = np.zeros(shape=(1,5))
+    prev_holes = 0
+    prev_bumps = 0
+
+    steps = 0
+    while True:
+        steps += 1
+
+        # Prediction, action
+        print(cleaned_obs.shape)
+        print(info_vec.shape)
+        test = agent.controller.vf([cleaned_obs[None], info_vec])
+        print(test)
+        agent_pred, agent_act = [x[0] for x in agent.controller.pf([cleaned_obs[None], info_vec])]
+
+        # Take the action
+        obs, agent_rew, done, info = env.step(agent_act)
+        env.render()
+        raw_obs = obs
+        cleaned_obs = crop_clean_state(raw_obs)
+        agent_rew, prev_holes, prev_bumps = compute_reward(cleaned_obs, agent_rew, prev_holes, prev_bumps)
+        # Take bonus steps to simplify:
+        if not done:
+            obs, fake_rew, done, info = env.step(5)
+            env.render()
+            raw_obs = obs
+            cleaned_obs = crop_clean_state(raw_obs)
+            fake_rew, prev_holes, prev_bumps = compute_reward(cleaned_obs, fake_rew, prev_holes, prev_bumps)
+            agent_rew += fake_rew
+            agent_rew /= 2
+
+        info_vec = extra_feats(info)
+
+        if steps == episode_steps or done:
+            break
+
 def save_model(agent, name):
     print()
     print('saving popt')
@@ -140,6 +190,8 @@ def main():
     batch_steps = 1500
     episode_steps = 1500
 
+    train_system = True
+
 	# Create env
     env = gym_tetris.make('TetrisA-v2')
     env = JoypadSpace(env, SIMPLE_MOVEMENT)
@@ -147,12 +199,22 @@ def main():
     # Declare observation shape, action space and model controller
     observation_shape = (160, 80, 1)
     action_space = env.action_space
-    controller = Controller(gamma, observation_shape, action_space, 'CONTROLLER')
-
-    # Declare, train and run agent
-    agent = PPOAgent(env, controller=controller)
-    train(agent, epochs=epochs, batch_steps=batch_steps, episode_steps=episode_steps)
-    save_model(agent, "trial")
+    
+    if train_system:
+        # Train
+        controller = Controller(gamma, observation_shape, action_space, 'CONTROLLER')
+        # Declare, train and run agent
+        agent = PPOAgent(env, controller=controller)
+        train(agent, epochs=epochs, batch_steps=batch_steps, episode_steps=episode_steps)
+        save_model(agent, "trial")
+    else:
+        # Test
+        v = tf.keras.models.load_model('./saved_models/v_trial')
+        p = tf.keras.models.load_model('./saved_models/p_trial')
+        popt = tf.keras.models.load_model('./saved_models/popt_trial', compile=False)
+        controller = TestController(gamma, observation_shape, action_space, 'CONTROLLER', v, p, popt)
+        agent = PPOAgent(env, controller=controller)
+        test(agent, episode_steps)
     env.close()
 
 if __name__ == "__main__":

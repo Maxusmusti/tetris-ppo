@@ -223,6 +223,93 @@ class Controller(object):
         self.n_agents += 1
         return self.n_agents
 
+class TestController(object):
+    def __init__(self,
+                 gamma=0.99,
+                 observation_shape=None,
+                 action_space=None,
+                 name='agent',
+                 v=None,
+                 p=None,
+                 popt=None):
+
+        self.gamma = gamma
+
+        self.observation_shape = observation_shape
+        self.action_space = action_space
+
+        self.p = p
+        self.popt = popt
+        self.init_policy_function()
+        self.v = v
+        self.init_value_function()
+        self.pretrained = self.load_pretrained()
+
+        self.X1 = []
+        self.X2 = []
+        self.Y = []
+        self.V = []
+        self.P = []
+
+        self.n_agents = 0
+        self.d_agents = 0
+        self.cur_updating = True
+
+        self.name = name
+
+    def load_pretrained(self):
+        return None
+
+    def init_value_function(self):
+        # value function
+        in1 = Input(self.observation_shape)
+        in2 = Input((5,))
+        self.v.compile(Adam(1e-3), 'binary_crossentropy')
+
+        # May need adjustment
+        vf = K.function(inputs=[in1, in2], outputs=self.v.layers[-1].output)
+        self.vf = vf
+
+    def init_policy_function(self):
+        action_space = self.action_space
+        # policy function
+        in1 = Input(self.observation_shape)
+        in2 = Input((5,))
+
+        in_advantage = Input((1,))
+        in_old_prediction = Input((action_space.n,))
+
+        def loss(y_true, y_pred):
+            advantage = tf.reshape(in_advantage, (-1,))
+        
+            # y_pred is the log probs of the actions
+            # y_true is the action mask
+            prob = tf.reduce_sum(y_true * y_pred, axis=-1)
+            old_prob = tf.reduce_sum(y_true * in_old_prediction, axis=-1)
+            ratio = tf.exp(prob - old_prob)
+            
+            # this is the VPG objective
+            #ll = -(prob * advantage)
+            
+            # this is PPO objective
+            ll = -K.minimum(ratio*advantage, K.clip(ratio, 0.8, 1.2)*advantage)
+            return ll
+
+
+        popt = self.popt
+
+        # May need adjustment
+        pf = K.function(inputs=[in1, in2],
+                        outputs=[self.p.layers[-1].output,
+                        tf.random.categorical(self.p.layers[-1].output, 1)[0]])
+                        
+        self.pf = pf
+        self.popt = popt
+
+    def register_agent(self):
+        self.n_agents += 1
+        return self.n_agents
+
 class PPOAgent(object):
     """Basic PPO implementation for LoLGym environment."""
     def __init__(self, env, controller=None):
