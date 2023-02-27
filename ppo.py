@@ -1,5 +1,5 @@
 """
-Full game environment implementing PPO for Tetris
+PPO agent and controller definitions (with actor/critic models) for Tetris
 """
 
 import numpy as np
@@ -21,10 +21,17 @@ tf.compat.v1.disable_eager_execution()
 
 
 class Controller(object):
+    """
+    PPO Agent Controller, with defined actor/critic models and fitting function
+    """
+
     def __init__(
         self, gamma=0.99, observation_shape=None, action_space=None, name="agent"
     ):
-
+        """
+        Initialize Controller with observation shape and action space.
+        Also initializes actor/critic models and info lists
+        """
         self.gamma = gamma
 
         self.observation_shape = observation_shape
@@ -47,9 +54,15 @@ class Controller(object):
         self.name = name
 
     def load_pretrained(self):
+        """
+        Unused, potential pre-trained model guidance plan (scrapped)
+        """
         return None
 
     def init_value_function(self):
+        """
+        Define and compile critic model and value function
+        """
         # value function
         x = in1 = Input(self.observation_shape)
         in2 = Input((5,))
@@ -75,6 +88,9 @@ class Controller(object):
         self.v = v
 
     def init_policy_function(self):
+        """
+        Define and compile actor model and policy function
+        """
         action_space = self.action_space
 
         # policy function
@@ -106,10 +122,7 @@ class Controller(object):
             old_prob = tf.reduce_sum(y_true * in_old_prediction, axis=-1)
             ratio = tf.exp(prob - old_prob)
 
-            # this is the VPG objective
-            # ll = -(prob * advantage)
-
-            # this is PPO objective
+            # PPO objective
             ll = -K.minimum(ratio * advantage, K.clip(ratio, 0.8, 1.2) * advantage)
             return ll
 
@@ -130,6 +143,9 @@ class Controller(object):
         self.p = p
 
     def fit(self, batch_size=5, epochs=5, shuffle=True, verbose=0):
+        """
+        Fit the models based on stored run information
+        """
         X1 = self.X1
         X2 = self.X2
         Y = self.Y
@@ -166,11 +182,18 @@ class Controller(object):
         return loss, vloss
 
     def register_agent(self):
+        """
+        Increment agent count
+        """
         self.n_agents += 1
         return self.n_agents
 
 
 class TestController(object):
+    """
+    Simplified PPO Agent Controller for testing
+    """
+
     def __init__(
         self,
         gamma=0.99,
@@ -234,9 +257,14 @@ class TestController(object):
 
 
 class PPOAgent(object):
-    """Basic PPO implementation for LoLGym environment."""
+    """
+    PPO Agent class
+    """
 
     def __init__(self, env, controller=None):
+        """
+        Initializes with controller and registers agent id (for potential multi-agent)
+        """
         if not controller:
             raise ValueError("PPOAgent needs to be provided an external controller")
 
@@ -247,6 +275,9 @@ class PPOAgent(object):
         self.env = env
 
     def save_pair(self, obs, vec, act):
+        """
+        Save a state-action pair
+        """
         action_space = self.controller.action_space
         self.controller.X1.append(np.copy(obs))
         self.controller.X2.append(np.copy(vec))
@@ -255,6 +286,7 @@ class PPOAgent(object):
         self.controller.Y.append(act_mask)
 
 
+# Image-to-grid mapping "model" and function
 val = inp = Input((160, 80, 1))
 val = MaxPooling2D(pool_size=(8, 8), strides=(8, 8))(val)
 state_model = Model(inputs=inp, outputs=val)
@@ -263,6 +295,9 @@ sf = K.function(inputs=inp, outputs=val)
 
 
 def bumps(map):
+    """
+    Calculate bumps in a given state
+    """
     bumps = 0
     pad_map = np.pad(map, [(1, 1), (1, 1)], mode="constant", constant_values=1)
     for i in range(1, len(map) + 1):
@@ -283,6 +318,9 @@ def bumps(map):
 
 
 def holes(map):
+    """
+    Calculate holes in a given state
+    """
     holes = 0
     pad_map = np.pad(map, [(1, 1), (1, 1)], mode="constant", constant_values=1)
     for i in range(1, len(map) + 1):
@@ -299,6 +337,9 @@ def holes(map):
 
 
 def compute_reward(obs, rew, prev_holes, prev_bumps):
+    """
+    Compute reward for a given state
+    """
     try:
         state = np.squeeze(np.squeeze(sf(np.expand_dims(obs, axis=0)), axis=0), axis=2)
     except:
