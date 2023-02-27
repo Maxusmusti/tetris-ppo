@@ -181,7 +181,7 @@ class Controller(object):
         self.popt = popt
         self.p = p
 
-    def fit(self, batch_size=5, epochs=10, shuffle=True, verbose=0):
+    def fit(self, batch_size=5, epochs=5, shuffle=True, verbose=0):
         X1 = self.X1
         X2 = self.X2
         Y = self.Y
@@ -200,9 +200,9 @@ class Controller(object):
         # Subtract value baseline to get advantage
         A = V - self.vf([X1, X2])[:, 0]
 
-        loss = self.popt.fit([X1, X2, A, P], Y, batch_size=5, epochs=10, shuffle=True, verbose=0)
+        loss = self.popt.fit([X1, X2, A, P], Y, batch_size=5, epochs=5, shuffle=True, verbose=0)
         loss = loss.history["loss"][-1]
-        vloss = self.v.fit([X1, X2], V, batch_size=5, epochs=10, shuffle=True, verbose=0)
+        vloss = self.v.fit([X1, X2], V, batch_size=5, epochs=5, shuffle=True, verbose=0)
         vloss = vloss.history["loss"][-1]
 
         self.X1 = []
@@ -249,16 +249,43 @@ state_model = Model(inputs=inp, outputs=val)
 state_model.compile(loss='mse')
 sf = K.function(inputs=inp,outputs=val)
 
-def imbalance(map):
-    imbalance = 0
+def bumps(map):
+    bumps = 0
+    pad_map = np.pad(map, [(1, 1), (1, 1)], mode='constant', constant_values=1)
+    for i in range(1,len(map)+1):
+        for j in range(1,len(map[0])+1):
+            space = 0
+            if pad_map[i][j] == 1:
+                if pad_map[i+1][j] == 0:
+                    space += 1
+                if pad_map[i-1][j] == 0:
+                    space += 1
+                if pad_map[i][j+1] == 0:
+                    space += 1
+                if pad_map[i][j-1] == 0:
+                    space += 1
+            if space >= 3:
+                bumps += 1
+    return bumps
 
 def holes(map):
     holes = 0
+    pad_map = np.pad(map, [(1, 1), (1, 1)], mode='constant', constant_values=1)
+    #print(pad_map)
+    for i in range(1,len(map)+1):
+        for j in range(1,len(map[0])+1):
+            if pad_map[i][j] == 0:
+                if pad_map[i+1][j] == 1 and pad_map[i-1][j] == 1 and pad_map[i][j+1] == 1 and pad_map[i][j-1] == 1:
+                    holes += 1
+    return holes
 
-def compute_reward(obs, rew):
+def compute_reward(obs, rew, prev_holes, prev_bumps):
     try:
         state = np.squeeze(np.squeeze(sf(np.expand_dims(obs, axis=0)), axis=0), axis=2)
     except:
         print("bad state")
         return rew
-    return rew
+    new_holes = holes(state)
+    new_bumps = bumps(state)
+    rew = rew + 2 + 3 * (prev_holes - new_holes) + 3 * (prev_bumps - new_bumps)
+    return rew, new_holes, new_bumps

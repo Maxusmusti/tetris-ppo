@@ -7,7 +7,6 @@ import tensorflow as tf
 import numpy as np
 import time
 import os
-import keyboard
 
 #os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # Remove to regain GPU ability
 tf.compat.v1.disable_eager_execution()
@@ -32,7 +31,7 @@ def train(agent, epochs, batch_steps, episode_steps):
         st = time.perf_counter()
         ll = []
 
-        if epoch % 50 == 1:
+        if epoch % 10 == 1:
             save_model(agent, str(epoch))
 
         while len(controller.X1) < batch_steps:
@@ -46,6 +45,8 @@ def train(agent, epochs, batch_steps, episode_steps):
             raw_obs = obs
             cleaned_obs = crop_clean_state(raw_obs)
             info_vec = np.zeros(shape=(1,5))
+            prev_holes = 0
+            prev_bumps = 0
 
             rews = []
             steps = 0
@@ -60,24 +61,23 @@ def train(agent, epochs, batch_steps, episode_steps):
                 probability = 1 - (10*epoch)/epochs
                 probability = 0 if probability < 0 else probability
                 if np.random.random_sample() < probability:
-                    if keyboard.is_pressed('a'):
-                        agent_act = 4
+                    if epoch == -1:
+                        event = input(f"Action {steps}: ")
+                        #print("here")
+                        if event == 's':
+                            agent_act = 5
+                        elif event == 'a':
+                            agent_act = 4
+                        elif event == 'd':
+                            agent_act = 3
+                        elif event == 'q':
+                            agent_act = 2
+                        elif event == 'e':
+                            agent_act = 1
+                        else:
+                            agent_act = 0
                     else:
-                        agent_act = 0
-                        # Block for as much as possible
-                    #print("start")
-                    #event = input("Action: ")
-                    #print("here")
-                    #if event == 's':
-                    #    agent_act = 5
-                    #elif event == 'a':
-                    #    agent_act = 4
-                    #elif event == 'd':
-                    #    agent_act = 3
-                    #else:
-                    #    agent_act = 0
-
-                    agent_act = np.random.choice(act_space_size)
+                        agent_act = np.random.choice(act_space_size)
 
                 # Save this state action pair
                 agent.save_pair(cleaned_obs, info_vec, agent_act)
@@ -85,23 +85,22 @@ def train(agent, epochs, batch_steps, episode_steps):
                 # Take the action and save the reward
                 obs, agent_rew, done, info = env.step(agent_act)
                 env.render()
-                #raw_obs = obs
-                #cleaned_obs = crop_clean_state(raw_obs)
-                #agent_rew = compute_reward(cleaned_obs, agent_rew)
-                # Take bonus steps to simplify:
-                if not done:
-                    for i in range(2):
-                        obs, fake_rew, done, info = env.step(5)
-                        env.render()
-                        #raw_obs = obs
-                        #cleaned_obs = crop_clean_state(raw_obs)
-                        #fake_rew = compute_reward(cleaned_obs, fake_rew)
-                        if fake_rew > agent_rew:
-                            agent_rew = fake_rew
-                        if done:
-                            break
                 raw_obs = obs
                 cleaned_obs = crop_clean_state(raw_obs)
+                agent_rew, prev_holes, prev_bumps = compute_reward(cleaned_obs, agent_rew, prev_holes, prev_bumps)
+                # Take bonus steps to simplify:
+                if not done:
+                    obs, fake_rew, done, info = env.step(5)
+                    env.render()
+                    raw_obs = obs
+                    cleaned_obs = crop_clean_state(raw_obs)
+                    fake_rew, prev_holes, prev_bumps = compute_reward(cleaned_obs, fake_rew, prev_holes, prev_bumps)
+                    agent_rew += fake_rew
+                    agent_rew /= 2
+
+                print(agent_rew)
+                #raw_obs = obs
+                #cleaned_obs = crop_clean_state(raw_obs)
                 info_vec = extra_feats(info)
 
                 rews.append(agent_rew)
@@ -137,12 +136,12 @@ def save_model(agent, name):
 
 def main():
     gamma = 0.99
-    epochs = 1000
-    batch_steps = 1000
-    episode_steps = 2000
+    epochs = 100
+    batch_steps = 1500
+    episode_steps = 1500
 
 	# Create env
-    env = gym_tetris.make('TetrisA-v0')
+    env = gym_tetris.make('TetrisA-v2')
     env = JoypadSpace(env, SIMPLE_MOVEMENT)
 
     # Declare observation shape, action space and model controller
