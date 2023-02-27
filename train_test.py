@@ -84,21 +84,21 @@ def train(agent, epochs, batch_steps, episode_steps):
 
                 # Take the action and save the reward
                 obs, agent_rew, done, info = env.step(agent_act)
-                env.render()
+                #env.render()
                 raw_obs = obs
                 cleaned_obs = crop_clean_state(raw_obs)
                 agent_rew, prev_holes, prev_bumps = compute_reward(cleaned_obs, agent_rew, prev_holes, prev_bumps)
                 # Take bonus steps to simplify:
                 if not done:
                     obs, fake_rew, done, info = env.step(5)
-                    env.render()
+                    #env.render()
                     raw_obs = obs
                     cleaned_obs = crop_clean_state(raw_obs)
                     fake_rew, prev_holes, prev_bumps = compute_reward(cleaned_obs, fake_rew, prev_holes, prev_bumps)
                     agent_rew += fake_rew
                     agent_rew /= 2
 
-                print(agent_rew)
+                #print(agent_rew)
                 #raw_obs = obs
                 #cleaned_obs = crop_clean_state(raw_obs)
                 info_vec = extra_feats(info)
