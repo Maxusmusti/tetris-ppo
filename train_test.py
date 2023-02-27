@@ -39,7 +39,7 @@ def train(agent, epochs, batch_steps, episode_steps):
             # reset the environment
             if done:
                 obs = env.reset()
-                env.render()
+                #env.render()
 
             # Get raw observation and create new observation vector
             raw_obs = obs
