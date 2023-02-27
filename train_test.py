@@ -17,12 +17,12 @@ act_space_size = 6
 
 def train(agent, epochs, batch_steps, episode_steps):
     """
-    Trains PPO agents with specified number of epochs, batch_steps, and episode_steps
+    Trains PPO agent with specified number of epochs, batch_steps, and episode_steps
     """
     final_out = ""
     lll = []
 
-    # use agent1's controller as the main environment controller
+    # use agent's controller as the main environment controller
     controller = agent.controller
     env = agent.env
     done = True
@@ -148,7 +148,7 @@ def train(agent, epochs, batch_steps, episode_steps):
 
 def test(agent, episode_steps):
     """
-    Tests PPO agents with specified number of episode_steps
+    Tests PPO agent with specified number of episode_steps
     """
 
     env = agent.env
@@ -169,11 +169,7 @@ def test(agent, episode_steps):
         steps += 1
 
         # Prediction, action
-        print(cleaned_obs.shape)
-        print(info_vec.shape)
-        test = agent.controller.vf([cleaned_obs[None], info_vec])
-        print(test)
-        agent_pred, agent_act = [
+        _, agent_act = [
             x[0] for x in agent.controller.pf([cleaned_obs[None], info_vec])
         ]
 
@@ -219,7 +215,7 @@ def main():
     batch_steps = 1500
     episode_steps = 1500
 
-    train_system = True
+    train_system = False
 
     # Create env
     env = gym_tetris.make("TetrisA-v2")
@@ -240,8 +236,8 @@ def main():
         save_model(agent, "trial")
     else:
         # Test
-        v = tf.keras.models.load_model("./saved_models/v_trial")
-        p = tf.keras.models.load_model("./saved_models/p_trial")
+        v = tf.keras.models.load_model("./saved_models/v_trial", compile=False)
+        p = tf.keras.models.load_model("./saved_models/p_trial", compile=False)
         popt = tf.keras.models.load_model("./saved_models/popt_trial", compile=False)
         controller = TestController(
             gamma, observation_shape, action_space, "CONTROLLER", v, p, popt

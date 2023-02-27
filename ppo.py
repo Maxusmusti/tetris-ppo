@@ -1,4 +1,6 @@
-"""Full game environment implementing PPO for a 1v1 game"""
+"""
+Full game environment implementing PPO for Tetris
+"""
 
 import numpy as np
 import tensorflow as tf
@@ -56,8 +58,6 @@ class Controller(object):
         x = st = MaxPooling2D(pool_size=(8, 8), strides=(8, 8))(x)
         x = Conv2D(filters=1, kernel_size=(3, 3), activation="relu")(x)
         # x = MaxPooling2D(pool_size=(2, 2))(x)
-        # x = Conv2D(filters=64, kernel_size=(3, 3), activation='relu')(x)
-        # x = MaxPooling2D(pool_size=(2, 2))(x)
         st = Flatten()(st)
         x = Flatten()(x)
         x = Concatenate()([x, st, in2])
@@ -69,7 +69,6 @@ class Controller(object):
         v.compile(Adam(1e-3), "binary_crossentropy")
         v.summary()
 
-        # May need adjustment
         vf = K.function(inputs=[in1, in2], outputs=v.layers[-1].output)
 
         self.vf = vf
@@ -85,9 +84,6 @@ class Controller(object):
         # x = MaxPooling2D(pool_size=(2, 2))(x)
         x = st = MaxPooling2D(pool_size=(8, 8), strides=(8, 8))(x)
         x = Conv2D(filters=1, kernel_size=(3, 3), activation="relu")(x)
-        # x = Conv2D(filters=64, kernel_size=(3, 3), activation='relu')(x)
-        # x = MaxPooling2D(pool_size=(2, 2))(x)
-        # x = Conv2D(filters=64, kernel_size=(3, 3), activation='relu')(x)
         # x = MaxPooling2D(pool_size=(2, 2))(x)
         st = Flatten()(st)
         x = Flatten()(x)
@@ -117,12 +113,10 @@ class Controller(object):
             ll = -K.minimum(ratio * advantage, K.clip(ratio, 0.8, 1.2) * advantage)
             return ll
 
-        # To lookout for
         popt = Model([in1, in2, in_advantage, in_old_prediction], action_dist)
         popt.compile(Adam(5e-4), loss)
         popt.summary()
 
-        # May need adjustment
         pf = K.function(
             inputs=[in1, in2],
             outputs=[
@@ -171,10 +165,6 @@ class Controller(object):
 
         return loss, vloss
 
-    # def get_pred_act(self, obs):
-    #    pred, act = [x[0] for x in self.pf(obs[None])]
-    #    return pred, act
-
     def register_agent(self):
         self.n_agents += 1
         return self.n_agents
@@ -221,52 +211,22 @@ class TestController(object):
 
     def init_value_function(self):
         # value function
-        in1 = Input(self.observation_shape)
-        in2 = Input((5,))
-        self.v.compile(Adam(1e-3), "binary_crossentropy")
-
-        # May need adjustment
-        vf = K.function(inputs=[in1, in2], outputs=self.v.layers[-1].output)
+        vf = K.function(
+            inputs=[self.v.layers[0].input, self.v.layers[5].input],
+            outputs=self.v.layers[-1].output,
+        )
         self.vf = vf
 
     def init_policy_function(self):
-        action_space = self.action_space
         # policy function
-        in1 = Input(self.observation_shape)
-        in2 = Input((5,))
-
-        in_advantage = Input((1,))
-        in_old_prediction = Input((action_space.n,))
-
-        def loss(y_true, y_pred):
-            advantage = tf.reshape(in_advantage, (-1,))
-
-            # y_pred is the log probs of the actions
-            # y_true is the action mask
-            prob = tf.reduce_sum(y_true * y_pred, axis=-1)
-            old_prob = tf.reduce_sum(y_true * in_old_prediction, axis=-1)
-            ratio = tf.exp(prob - old_prob)
-
-            # this is the VPG objective
-            # ll = -(prob * advantage)
-
-            # this is PPO objective
-            ll = -K.minimum(ratio * advantage, K.clip(ratio, 0.8, 1.2) * advantage)
-            return ll
-
-        popt = self.popt
-
-        # May need adjustment
         pf = K.function(
-            inputs=[in1, in2],
+            inputs=[self.p.layers[0].input, self.p.layers[5].input],
             outputs=[
                 self.p.layers[-1].output,
                 tf.random.categorical(self.p.layers[-1].output, 1)[0],
             ],
         )
-
         self.pf = pf
-        self.popt = popt
 
     def register_agent(self):
         self.n_agents += 1
@@ -325,7 +285,6 @@ def bumps(map):
 def holes(map):
     holes = 0
     pad_map = np.pad(map, [(1, 1), (1, 1)], mode="constant", constant_values=1)
-    # print(pad_map)
     for i in range(1, len(map) + 1):
         for j in range(1, len(map[0]) + 1):
             if pad_map[i][j] == 0:
