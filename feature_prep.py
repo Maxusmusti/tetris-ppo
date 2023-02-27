@@ -1,3 +1,7 @@
+"""
+Functions for preprocessing state image and creating the additional info vector live here
+"""
+
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -18,7 +22,7 @@ def bw_pixel(gray):
 
 def crop_clean_state(state):
     """
-    Crops only the tetris board from the state image and makes it grayscale [0-1]
+    Crops only the tetris board from the state image and makes it black and white
     """
     cropped = state[47:207, 95:175]
     cropped = cropped / 255.0
@@ -30,6 +34,7 @@ def crop_clean_state(state):
     return bw_cropped
 
 
+# Mapping of piece names to ints
 piece_map = {
     "Sh": 0,
     "Sv": 1,
