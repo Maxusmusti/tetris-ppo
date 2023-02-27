@@ -7,6 +7,7 @@ import tensorflow as tf
 import numpy as np
 import time
 import os
+import keyboard
 
 #os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # Remove to regain GPU ability
 tf.compat.v1.disable_eager_execution()
@@ -39,6 +40,7 @@ def train(agent, epochs, batch_steps, episode_steps):
             # reset the environment
             if done:
                 obs = env.reset()
+                env.render()
 
             # Get raw observation and create new observation vector
             raw_obs = obs
@@ -58,6 +60,23 @@ def train(agent, epochs, batch_steps, episode_steps):
                 probability = 1 - (10*epoch)/epochs
                 probability = 0 if probability < 0 else probability
                 if np.random.random_sample() < probability:
+                    if keyboard.is_pressed('a'):
+                        agent_act = 4
+                    else:
+                        agent_act = 0
+                        # Block for as much as possible
+                    #print("start")
+                    #event = input("Action: ")
+                    #print("here")
+                    #if event == 's':
+                    #    agent_act = 5
+                    #elif event == 'a':
+                    #    agent_act = 4
+                    #elif event == 'd':
+                    #    agent_act = 3
+                    #else:
+                    #    agent_act = 0
+
                     agent_act = np.random.choice(act_space_size)
 
                 # Save this state action pair
@@ -65,23 +84,24 @@ def train(agent, epochs, batch_steps, episode_steps):
 
                 # Take the action and save the reward
                 obs, agent_rew, done, info = env.step(agent_act)
-                #env.render()
-                raw_obs = obs
-                cleaned_obs = crop_clean_state(raw_obs)
-                agent_rew = compute_reward(cleaned_obs, agent_rew)
+                env.render()
+                #raw_obs = obs
+                #cleaned_obs = crop_clean_state(raw_obs)
+                #agent_rew = compute_reward(cleaned_obs, agent_rew)
                 # Take bonus steps to simplify:
                 if not done:
-                    for i in range(10):
-                        obs, fake_rew, done, info = env.step(0)
-                        #env.render()
-                        raw_obs = obs
-                        cleaned_obs = crop_clean_state(raw_obs)
-                        fake_rew = compute_reward(cleaned_obs, fake_rew)
+                    for i in range(2):
+                        obs, fake_rew, done, info = env.step(5)
+                        env.render()
+                        #raw_obs = obs
+                        #cleaned_obs = crop_clean_state(raw_obs)
+                        #fake_rew = compute_reward(cleaned_obs, fake_rew)
                         if fake_rew > agent_rew:
                             agent_rew = fake_rew
                         if done:
                             break
-
+                raw_obs = obs
+                cleaned_obs = crop_clean_state(raw_obs)
                 info_vec = extra_feats(info)
 
                 rews.append(agent_rew)

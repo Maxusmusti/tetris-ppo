@@ -249,6 +249,12 @@ state_model = Model(inputs=inp, outputs=val)
 state_model.compile(loss='mse')
 sf = K.function(inputs=inp,outputs=val)
 
+def imbalance(map):
+    imbalance = 0
+
+def holes(map):
+    holes = 0
+
 def compute_reward(obs, rew):
     try:
         state = np.squeeze(np.squeeze(sf(np.expand_dims(obs, axis=0)), axis=0), axis=2)
