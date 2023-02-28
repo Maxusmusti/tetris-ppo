@@ -76,10 +76,10 @@ class Controller(object):
         x = Concatenate()([x, st, in2])
         x = Dense(units=32, activation="relu")(x)
         x = Dense(units=32, activation="relu")(x)
-        x = Dense(units=1, activation="sigmoid")(x)
+        x = Dense(units=1)(x)
         v = Model(inputs=[in1, in2], outputs=x)
 
-        v.compile(Adam(1e-3), "binary_crossentropy")
+        v.compile(Adam(1e-3), "mse")
         v.summary()
 
         vf = K.function(inputs=[in1, in2], outputs=v.layers[-1].output)
